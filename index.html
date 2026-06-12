@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Translation Update Interface</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-content">
+                <h1 class="logo">🔄 TranslateSync</h1>
+                <div class="nav-items">
+                    <button class="nav-btn active" data-tab="editor">Editor</button>
+                    <button class="nav-btn" data-tab="history">History</button>
+                    <button class="nav-btn" data-tab="settings">Settings</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Editor Tab -->
+            <div class="tab-content active" id="editor-tab">
+                <div class="editor-header">
+                    <h2>Translation Editor</h2>
+                    <p>Update translations based on reference examples</p>
+                </div>
+
+                <div class="quick-guide">
+                    <div class="guide-item">
+                        <span class="guide-icon">📌</span>
+                        <div>
+                            <h4>Zone A</h4>
+                            <p>Original text</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <span class="guide-icon">✨</span>
+                        <div>
+                            <h4>Zone A'</h4>
+                            <p>Reference translation</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <span class="guide-icon">📝</span>
+                        <div>
+                            <h4>Zone B</h4>
+                            <p>New text to translate</p>
+                        </div>
+                    </div>
+                    <div class="guide-item">
+                        <span class="guide-icon">🤖</span>
+                        <div>
+                            <h4>Zone B'</h4>
+                            <p>AI translation output</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="statusMessage" class="status-message"></div>
+
+                <div class="zones-container">
+                    <!-- Zone A: Original Text -->
+                    <div class="zone">
+                        <div class="zone-header">
+                            <span class="zone-label source">A</span>
+                            <span class="zone-description">Original Text (Source)</span>
+                        </div>
+                        <textarea id="zoneA" placeholder="Enter the original text here..." class="zone-textarea"></textarea>
+                        <div class="zone-footer">
+                            <span class="char-count" id="countA">0</span> characters
+                            <button class="btn-copy" onclick="copyToClipboard('zoneA')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Zone A': Reference Translation -->
+                    <div class="zone">
+                        <div class="zone-header">
+                            <span class="zone-label reference">A'</span>
+                            <span class="zone-description">Reference Translation</span>
+                        </div>
+                        <textarea id="zoneAp" placeholder="Enter your reference translation here..." class="zone-textarea"></textarea>
+                        <div class="zone-footer">
+                            <span class="char-count" id="countAp">0</span> characters
+                            <button class="btn-copy" onclick="copyToClipboard('zoneAp')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Zone B: New Text -->
+                    <div class="zone">
+                        <div class="zone-header">
+                            <span class="zone-label source">B</span>
+                            <span class="zone-description">New Text (Source)</span>
+                        </div>
+                        <textarea id="zoneB" placeholder="Enter the new/updated text here..." class="zone-textarea"></textarea>
+                        <div class="zone-footer">
+                            <span class="char-count" id="countB">0</span> characters
+                            <button class="btn-copy" onclick="copyToClipboard('zoneB')">📋 Copy</button>
+                        </div>
+                    </div>
+
+                    <!-- Zone B': AI Translation -->
+                    <div class="zone">
+                        <div class="zone-header">
+                            <span class="zone-label ai">B'</span>
+                            <span class="zone-description">AI Translation (Auto-generated)</span>
+                        </div>
+                        <textarea id="zoneBp" placeholder="AI will generate translation here..." class="zone-textarea" disabled></textarea>
+                        <div class="zone-footer">
+                            <span class="char-count" id="countBp">0</span> characters
+                            <button class="btn-copy" onclick="copyToClipboard('zoneBp')">📋 Copy</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-translate" id="translateBtn" onclick="translateZoneB()">
+                        ✨ Generate B' Translation
+                    </button>
+                    <button class="btn-secondary" onclick="clearAllZones()">
+                        🗑️ Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-content" id="history-tab">
+                <div class="editor-header">
+                    <h2>Translation History</h2>
+                    <p>Your recent translations</p>
+                </div>
+                <div id="historyContainer" class="history-container">
+                    <p class="empty-state">No translations yet. Start translating to see history!</p>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="settings-tab">
+                <div class="editor-header">
+                    <h2>Settings & Configuration</h2>
+                    <p>Customize your translation experience</p>
+                </div>
+                <div class="settings-grid">
+                    <div class="settings-section">
+                        <h3>🔑 API Configuration</h3>
+                        <div class="setting-group">
+                            <label for="apiKey">OpenAI API Key:</label>
+                            <div class="input-with-toggle">
+                                <input type="password" id="apiKey" placeholder="sk-..." class="setting-input" />
+                                <button class="btn-toggle-visibility" onclick="toggleApiKeyVisibility()">👁️</button>
+                            </div>
+                            <p class="help-text">Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Platform</a></p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🤖 Translation Model</h3>
+                        <div class="setting-group">
+                            <label for="model">Select Model:</label>
+                            <select id="model" class="setting-input">
+                                <option value="gpt-4-turbo">GPT-4 Turbo (Recommended)</option>
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Fast & Cheap)</option>
+                            </select>
+                        </div>
+                        <div class="setting-group">
+                            <label for="temperature">Temperature (Creativity):</label>
+                            <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.3" class="setting-input" />
+                            <p class="help-text">Lower = more consistent | Higher = more creative</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>🌍 Language Settings</h3>
+                        <div class="setting-group">
+                            <label for="targetLanguage">Target Language:</label>
+                            <select id="targetLanguage" class="setting-input">
+                                <optgroup label="European">
+                                    <option value="Spanish">Spanish</option>
+                                    <option value="French">French</option>
+                                    <option value="German">German</option>
+                                    <option value="Italian">Italian</option>
+                                    <option value="Portuguese">Portuguese</option>
+                                </optgroup>
+                                <optgroup label="Asian">
+                                    <option value="Japanese">Japanese</option>
+                                    <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+                                    <option value="Chinese (Traditional)">Chinese (Traditional)</option>
+                                    <option value="Korean">Korean</option>
+                                    <option value="Thai">Thai</option>
+                                </optgroup>
+                                <optgroup label="Other">
+                                    <option value="Russian">Russian</option>
+                                    <option value="Arabic">Arabic</option>
+                                    <option value="Hindi">Hindi</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3>💾 Data & Storage</h3>
+                        <div class="setting-group">
+                            <label>
+                                <input type="checkbox" id="autoSave" checked /> Auto-save translations to history
+                            </label>
+                        </div>
+                        <div class="setting-group">
+                            <button class="btn-secondary" onclick="downloadHistory()">📥 Download History</button>
+                            <button class="btn-secondary btn-danger" onclick="clearHistory()">🗑️ Clear History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
