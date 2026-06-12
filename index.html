@@ -3,72 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TranslateSync</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>TranslateSync - AI Translation Tool</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>🔄 TranslateSync</h1>
-            <p>AI Translation with 12+ Providers</p>
+            <p>Free AI Translation with Multiple Providers</p>
         </header>
 
-        <div class="settings-bar">
-            <select id="provider" class="control">
-                <option value="">Select Provider</option>
-            </select>
-            <select id="model" class="control">
-                <option value="">Select Model</option>
-            </select>
-            <input type="password" id="apiKey" class="control" placeholder="API Key" />
-            <input type="range" id="temperature" class="control" min="0" max="1" step="0.1" value="0.3" title="Temperature" />
-            <select id="mode" class="control">\n                <option value="reference">With Reference (A→A'→B)</option>\n                <option value="direct">Direct Translation (B only)</option>\n            </select>\n            <select id="language" class="control">
-                <option value="Spanish">Spanish</option>
-                <option value="French">French</option>
-                <option value="German">German</option>
-                <option value="Japanese">Japanese</option>
-                <option value="Chinese (Simplified)">Chinese (Simplified)</option>
-                <option value="Traditional Chinese (HK)">Traditional Chinese (HK)</option>
-                <option value="Korean">Korean</option>
-                <option value="Portuguese">Portuguese</option>
-                <option value="Russian">Russian</option>
-                <option value="Arabic">Arabic</option>
-                <option value="Italian">Italian</option>
-            </select>
+        <div class="settings-panel">
+            <div class="setting-group">
+                <label>📡 Provider:</label>
+                <select id="provider">
+                    <option value="groq">⚡ Groq (Fastest - Free)</option>
+                    <option value="openai">🤖 OpenAI</option>
+                    <option value="cohere">✨ Cohere</option>
+                    <option value="huggingface">🤗 HuggingFace</option>
+                </select>
+                <small>Get free keys: groq.com, cohere.com, huggingface.co</small>
+            </div>
+
+            <div class="setting-group">
+                <label>🔑 API Key:</label>
+                <input type="password" id="apiKey" placeholder="Paste your API key here">
+            </div>
+
+            <div class="setting-group">
+                <label>🌍 Target Language:</label>
+                <select id="language">
+                    <option value="Spanish">Spanish</option>
+                    <option value="French">French</option>
+                    <option value="German">German</option>
+                    <option value="Japanese">Japanese</option>
+                    <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+                    <option value="Traditional Chinese (Hong Kong)">Traditional Chinese (Hong Kong)</option>
+                    <option value="Korean">Korean</option>
+                    <option value="Portuguese">Portuguese</option>
+                    <option value="Russian">Russian</option>
+                    <option value="Arabic">Arabic</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>⚙️ Mode:</label>
+                <select id="mode">
+                    <option value="direct">Direct Translation</option>
+                    <option value="reference">With Reference Style</option>
+                </select>
+            </div>
         </div>
 
-        <div class="status" id="status"></div>
+        <div id="status" class="status"></div>
 
-        <div class="zones" id="zonesContainer">
-            <div class="zone" id="zoneA-container">
-                <label>Zone A<br><small>Original</small></label>
-                <textarea id="zoneA" placeholder="Enter original text"></textarea>
-                <div class="zone-info"><span id="countA">0</span> chars | <button class="btn-mini" onclick="copy('zoneA')">📋</button></div>
+        <div class="main-content">
+            <div id="referenceSection" class="section hidden">
+                <h3>📚 Reference Style (Optional)</h3>
+                <div class="io-pair">
+                    <div class="io-box">
+                        <label>Original Text:</label>
+                        <textarea id="refOriginal" placeholder="Example: Hello world"></textarea>
+                    </div>
+                    <div class="io-box">
+                        <label>Your Translation:</label>
+                        <textarea id="refTranslation" placeholder="Example: Hola mundo"></textarea>
+                    </div>
+                </div>
             </div>
 
-            <div class="zone" id="zoneAp-container">
-                <label>Zone A'<br><small>Reference</small></label>
-                <textarea id="zoneAp" placeholder="Enter reference translation"></textarea>
-                <div class="zone-info"><span id="countAp">0</span> chars | <button class="btn-mini" onclick="copy('zoneAp')">📋</button></div>
+            <div class="section">
+                <h3>📝 Text to Translate</h3>
+                <textarea id="sourceText" placeholder="Enter text to translate..." class="large-input"></textarea>
             </div>
 
-            <div class="zone">
-                <label>Zone B<br><small>New Text</small></label>
-                <textarea id="zoneB" placeholder="Enter text to translate"></textarea>
-                <div class="zone-info"><span id="countB">0</span> chars | <button class="btn-mini" onclick="copy('zoneB')">📋</button></div>
-            </div>
-
-            <div class="zone">
-                <label>Zone B'<br><small>Result</small></label>
-                <textarea id="zoneBp" placeholder="Translation appears here" disabled></textarea>
-                <div class="zone-info"><span id="countBp">0</span> chars | <button class="btn-mini" onclick="copy('zoneBp')">📋</button></div>
+            <div class="section">
+                <h3>✨ Translation Result</h3>
+                <textarea id="resultText" placeholder="Translation will appear here..." class="large-input" readonly></textarea>
+                <button class="btn-copy" onclick="copyResult()">📋 Copy Result</button>
             </div>
         </div>
 
         <div class="actions">
-            <button class="btn-primary" id="translateBtn" onclick="translate()">✨ Translate</button>
-            <button class="btn-secondary" id="clearBtn" onclick="clearAll()">Clear</button>
-            <label><input type="checkbox" id="autoSave" checked /> Auto-save</label>
+            <button class="btn-primary" id="translateBtn" onclick="doTranslate()">🚀 Translate Now</button>
+            <button class="btn-secondary" onclick="clearAll()">🗑️ Clear All</button>
         </div>
     </div>
 
