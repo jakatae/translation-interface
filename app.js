@@ -1,372 +1,338 @@
-// State management
-const state = {
-    history: [],
-    currentTranslation: null
+const PROVIDERS = {
+    groq: {
+        name: '⚡ Groq (Free)',
+        models: [
+            { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B' },
+            { id: 'llama-3-70b-8192', name: 'Llama 3 70B' },
+            { id: 'llama-3-8b-8192', name: 'Llama 3 8B' }
+        ],
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    together: {
+        name: '🔥 Together AI (Free)',
+        models: [
+            { id: 'meta-llama/Llama-3-70b-chat-hf', name: 'Llama 3 70B' },
+            { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Mistral 7B' },
+            { id: 'mistralai/Mixtral-8x7B-Instruct-v0.1', name: 'Mixtral 8x7B' }
+        ],
+        endpoint: 'https://api.together.xyz/v1/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    openai: {
+        name: '🤖 OpenAI',
+        models: [
+            { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+            { id: 'gpt-4', name: 'GPT-4' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
+        ],
+        endpoint: 'https://api.openai.com/v1/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    anthropic: {
+        name: '🧠 Claude',
+        models: [
+            { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+            { id: 'claude-3-opus-20250219', name: 'Claude 3 Opus' },
+            { id: 'claude-3-haiku-20250307', name: 'Claude 3 Haiku' }
+        ],
+        endpoint: 'https://api.anthropic.com/v1/messages',
+        authHeader: 'x-api-key',
+        authPrefix: ''
+    },
+    cohere: {
+        name: '✨ Cohere',
+        models: [
+            { id: 'command-r-plus', name: 'Command R+' },
+            { id: 'command-r', name: 'Command R' }
+        ],
+        endpoint: 'https://api.cohere.ai/v1/chat',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    mistral: {
+        name: '🌟 Mistral AI',
+        models: [
+            { id: 'mistral-large-latest', name: 'Mistral Large' },
+            { id: 'mistral-medium-latest', name: 'Mistral Medium' }
+        ],
+        endpoint: 'https://api.mistral.ai/v1/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    deepseek: {
+        name: '🧠 DeepSeek (Free)',
+        models: [
+            { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+            { id: 'deepseek-coder', name: 'DeepSeek Coder' }
+        ],
+        endpoint: 'https://api.deepseek.com/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    xai: {
+        name: '🚀 xAI Grok (Free)',
+        models: [
+            { id: 'grok-beta', name: 'Grok Beta' }
+        ],
+        endpoint: 'https://api.x.ai/v1/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    perplexity: {
+        name: '🔍 Perplexity (Free)',
+        models: [
+            { id: 'pplx-70b-online', name: 'Perplexity 70B' },
+            { id: 'pplx-7b-online', name: 'Perplexity 7B' }
+        ],
+        endpoint: 'https://api.perplexity.ai/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    huggingface: {
+        name: '🤗 Hugging Face (Free)',
+        models: [
+            { id: 'mistralai/Mixtral-8x7B-Instruct-v0.1', name: 'Mixtral 8x7B' },
+            { id: 'meta-llama/Llama-2-7b-chat-hf', name: 'Llama 2 7B' }
+        ],
+        endpoint: 'https://api-inference.huggingface.co/v1/chat/completions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    replicate: {
+        name: '🎬 Replicate (Free)',
+        models: [
+            { id: 'meta/llama-2-70b-chat', name: 'Llama 2 70B' }
+        ],
+        endpoint: 'https://api.replicate.com/v1/predictions',
+        authHeader: 'Authorization',
+        authPrefix: 'Bearer '
+    },
+    ollama: {
+        name: '🦙 Ollama (Local)',
+        models: [
+            { id: 'llama2', name: 'Llama 2' },
+            { id: 'mistral', name: 'Mistral' }
+        ],
+        endpoint: 'http://localhost:11434/api/generate',
+        local: true
+    }
 };
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
-});
+let state = {
+    provider: 'groq',
+    model: 'mixtral-8x7b-32768',
+    history: []
+};
 
-function initializeApp() {
-    loadSettings();
+document.addEventListener('DOMContentLoaded', init);
+
+function init() {
+    loadState();
+    setupProviders();
+    setupCounters();
     loadHistory();
-    setupEventListeners();
-    setupCharCounters();
 }
 
-function setupEventListeners() {
-    // Tab navigation
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const tabName = e.target.dataset.tab;
-            switchTab(tabName);
+function setupProviders() {
+    const providerSelect = document.getElementById('provider');
+    Object.entries(PROVIDERS).forEach(([key, provider]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = provider.name;
+        providerSelect.appendChild(opt);
+    });
+    providerSelect.value = state.provider;
+    providerSelect.addEventListener('change', onProviderChange);
+    updateModels();
+}
+
+function onProviderChange() {
+    state.provider = document.getElementById('provider').value;
+    updateModels();
+    saveState();
+}
+
+function updateModels() {
+    const provider = PROVIDERS[state.provider];
+    const modelSelect = document.getElementById('model');
+    modelSelect.innerHTML = '';
+    provider.models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.name;
+        modelSelect.appendChild(opt);
+    });
+    state.model = provider.models[0].id;
+    modelSelect.value = state.model;
+}
+
+function setupCounters() {
+    ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => {
+            const count = document.getElementById(id).value.length;
+            document.getElementById('count' + id.replace('zone', '')).textContent = count;
         });
     });
-
-    // Auto-save settings
-    document.getElementById('apiKey').addEventListener('change', saveSettings);
-    document.getElementById('model').addEventListener('change', saveSettings);
-    document.getElementById('temperature').addEventListener('change', saveSettings);
-    document.getElementById('targetLanguage').addEventListener('change', saveSettings);
-    document.getElementById('autoSave').addEventListener('change', saveSettings);
-
-    // Keyboard shortcuts
-    document.getElementById('zoneB').addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            translateZoneB();
-        }
-    });
 }
 
-function setupCharCounters() {
-    const zones = ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'];
-    zones.forEach(zoneId => {
-        const textarea = document.getElementById(zoneId);
-        textarea.addEventListener('input', () => {
-            updateCharCount(zoneId);
-        });
-    });
+function copy(id) {
+    const text = document.getElementById(id).value;
+    navigator.clipboard.writeText(text);
+    showStatus('Copied', 'success', 1500);
 }
 
-function updateCharCount(zoneId) {
-    const textarea = document.getElementById(zoneId);
-    const countId = 'count' + zoneId.replace('zone', '');
-    const countElement = document.getElementById(countId);
-    countElement.textContent = textarea.value.length;
+function clear() {
+    document.getElementById('zoneA').value = '';
+    document.getElementById('zoneAp').value = '';
+    document.getElementById('zoneB').value = '';
+    document.getElementById('zoneBp').value = '';
+    ['A', 'Ap', 'B', 'Bp'].forEach(x => document.getElementById('count' + x).textContent = '0');
 }
 
-function switchTab(tabName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-
-    // Remove active from all buttons
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-
-    // Show selected tab
-    document.getElementById(tabName + '-tab').classList.add('active');
-
-    // Mark button as active
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-
-    // Refresh history if needed
-    if (tabName === 'history') {
-        displayHistory();
-    }
-}
-
-function showStatus(message, type = 'info', duration = 5000) {
-    const statusEl = document.getElementById('statusMessage');
-    statusEl.textContent = message;
-    statusEl.className = `status-message show ${type}`;
-
-    if (type !== 'loading') {
-        setTimeout(() => statusEl.classList.remove('show'), duration);
-    }
-}
-
-function showLoadingStatus(message) {
-    const statusEl = document.getElementById('statusMessage');
-    statusEl.innerHTML = `<span class="spinner"></span>${message}`;
-    statusEl.className = 'status-message show loading';
-}
-
-async function translateZoneB() {
+async function translate() {
+    const a = document.getElementById('zoneA').value.trim();
+    const ap = document.getElementById('zoneAp').value.trim();
+    const b = document.getElementById('zoneB').value.trim();
     const apiKey = document.getElementById('apiKey').value.trim();
-    const zoneA = document.getElementById('zoneA').value.trim();
-    const zoneAp = document.getElementById('zoneAp').value.trim();
-    const zoneB = document.getElementById('zoneB').value.trim();
-    const model = document.getElementById('model').value;
-    const targetLanguage = document.getElementById('targetLanguage').value;
-    const temperature = parseFloat(document.getElementById('temperature').value);
+    const lang = document.getElementById('language').value;
+    const temp = parseFloat(document.getElementById('temperature').value);
+    const provider = state.provider;
 
-    // Validation
-    if (!apiKey) {
-        showStatus('❌ Please enter your OpenAI API Key in Settings', 'error');
-        switchTab('settings');
-        return;
-    }
-    if (!zoneA || !zoneAp || !zoneB) {
-        showStatus('❌ Please fill in Zones A, A\', and B', 'error');
+    if (!a || !ap || !b) {
+        showStatus('Fill all zones', 'error');
         return;
     }
 
-    if (zoneA.length < 5 || zoneAp.length < 5 || zoneB.length < 5) {
-        showStatus('⚠️ Text should be at least 5 characters for better results', 'info');
+    if (!apiKey && !PROVIDERS[provider].local) {
+        showStatus('Enter API key', 'error');
+        return;
     }
 
-    const translateBtn = document.getElementById('translateBtn');
+    const translateBtn = document.querySelector('.btn-primary');
     translateBtn.disabled = true;
-
-    showLoadingStatus('Analyzing reference translation and generating B\'...');
+    showStatus('Translating...', 'loading');
 
     try {
-        const systemPrompt = `You are a professional translator specializing in consistent terminology management.
+        const prompt = `Analyze this translation style:
+SOURCE: "${a}"
+TRANSLATION: "${ap}"
 
-Your task:
-1. Analyze the reference translation pair (A → A') to understand:
-   - Terminology and technical terms
-   - Writing style and tone (formal, casual, technical, etc.)
-   - Punctuation and formatting conventions
-   - Sentence structure patterns
-   - Idioms and cultural adaptations
+Apply the same style and terminology to translate:
+"${b}"
 
-2. Apply these EXACT patterns to translate B:
-   - Use identical terminology for matching concepts
-   - Maintain the same register and tone
-   - Follow the same structural patterns
-   - Preserve punctuation style
-   - Keep consistent formatting
+Return ONLY the translation in ${lang}. Nothing else.`;
 
-3. Quality checks:
-   - Ensure naturalness while maintaining consistency
-   - Preserve all proper nouns and numbers
-   - Maintain sentence structure when applicable
-   - Keep similar length and complexity
+        let result;
+        const providerConfig = PROVIDERS[provider];
 
-REFERENCE TRANSLATION (for learning style):
-SOURCE (A): "${zoneA}"
-TRANSLATION (A'): "${zoneAp}"
-
-Now translate this using the same style and terminology:
-NEW TEXT (B): "${zoneB}"
-
-⚠️ OUTPUT RULE: Return ONLY the translation in ${targetLanguage}. No explanations, no quotes, no meta-commentary.`;
-
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    {
-                        role: 'system',
-                        content: systemPrompt
-                    }
-                ],
-                temperature: temperature,
-                max_tokens: 2000,
-                top_p: 0.95
-            })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            const errorMsg = error.error?.message || 'Unknown API error';
-            throw new Error(errorMsg);
-        }
-
-        const data = await response.json();
-        const translation = data.choices[0].message.content.trim();
-
-        document.getElementById('zoneBp').value = translation;
-        updateCharCount('zoneBp');
-
-        // Save to history if enabled
-        if (document.getElementById('autoSave').checked) {
-            saveTranslationToHistory({
-                timestamp: new Date(),
-                sourceA: zoneA,
-                translationAp: zoneAp,
-                sourceB: zoneB,
-                translationBp: translation,
-                language: targetLanguage,
-                model: model
-            });
-        }
-
-        showStatus('✨ Translation generated successfully!', 'success');
-
-    } catch (error) {
-        console.error('Translation error:', error);
-        if (error.message.includes('401')) {
-            showStatus('❌ Invalid API Key. Check your settings.', 'error');
-        } else if (error.message.includes('429')) {
-            showStatus('❌ Rate limited. Please wait a moment.', 'error');
-        } else if (error.message.includes('exceeded')) {
-            showStatus('❌ Exceeded token limit. Try shorter text.', 'error');
+        if (provider === 'anthropic') {
+            result = await callAnthropic(prompt, temp, apiKey);
+        } else if (provider === 'ollama') {
+            result = await callOllama(prompt, temp);
         } else {
-            showStatus(`❌ Error: ${error.message}`, 'error');
+            result = await callOpenAICompatible(prompt, temp, apiKey, providerConfig);
         }
+
+        document.getElementById('zoneBp').value = result;
+        document.getElementById('countBp').textContent = result.length;
+        showStatus('Done', 'success', 2000);
+
+        if (document.getElementById('autoSave').checked) {
+            saveToHistory({ a, ap, b, result, lang, provider });
+        }
+    } catch (e) {
+        showStatus('Error: ' + e.message, 'error');
     } finally {
         translateBtn.disabled = false;
     }
 }
 
-function copyToClipboard(elementId) {
-    const element = document.getElementById(elementId);
-    if (!element.value.trim()) {
-        showStatus('❌ Nothing to copy', 'error');
-        return;
-    }
-    navigator.clipboard.writeText(element.value).then(() => {
-        showStatus('✅ Copied to clipboard', 'success', 2000);
-    }).catch(() => {
-        showStatus('❌ Failed to copy', 'error');
+async function callOpenAICompatible(prompt, temp, key, config) {
+    const res = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            [config.authHeader]: config.authPrefix + key
+        },
+        body: JSON.stringify({
+            model: state.model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: temp,
+            max_tokens: 2000
+        })
     });
+
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() || data.text?.trim() || '';
 }
 
-function clearAllZones() {
-    if (confirm('Clear all zones? This cannot be undone.')) {
-        document.getElementById('zoneA').value = '';
-        document.getElementById('zoneAp').value = '';
-        document.getElementById('zoneB').value = '';
-        document.getElementById('zoneBp').value = '';
-        ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'].forEach(zoneId => updateCharCount(zoneId));
-        showStatus('🗑️ All zones cleared', 'info', 2000);
+async function callAnthropic(prompt, temp, key) {
+    const res = await fetch(PROVIDERS.anthropic.endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+            model: state.model,
+            max_tokens: 2000,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: temp
+        })
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || '';
+}
+
+async function callOllama(prompt, temp) {
+    const res = await fetch(PROVIDERS.ollama.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: state.model,
+            prompt: prompt,
+            temperature: temp,
+            stream: false
+        })
+    });
+
+    if (!res.ok) throw new Error('Ollama not running on localhost:11434');
+    const data = await res.json();
+    return data.response?.trim() || '';
+}
+
+function showStatus(msg, type, duration = 4000) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status show ' + type;
+    if (type !== 'loading') {
+        setTimeout(() => el.classList.remove('show'), duration);
     }
 }
 
-function toggleApiKeyVisibility() {
-    const input = document.getElementById('apiKey');
-    const btn = event.target;
-    if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '🙈';
-    } else {
-        input.type = 'password';
-        btn.textContent = '👁️';
-    }
+function saveState() {
+    localStorage.setItem('tstate', JSON.stringify(state));
 }
 
-// Settings Management
-function saveSettings() {
-    const settings = {
-        apiKey: document.getElementById('apiKey').value,
-        model: document.getElementById('model').value,
-        temperature: document.getElementById('temperature').value,
-        targetLanguage: document.getElementById('targetLanguage').value,
-        autoSave: document.getElementById('autoSave').checked
-    };
-    localStorage.setItem('translationSettings', JSON.stringify(settings));
+function loadState() {
+    const saved = localStorage.getItem('tstate');
+    if (saved) state = { ...state, ...JSON.parse(saved) };
 }
 
-function loadSettings() {
-    const saved = localStorage.getItem('translationSettings');
-    if (saved) {
-        const settings = JSON.parse(saved);
-        if (settings.apiKey) document.getElementById('apiKey').value = settings.apiKey;
-        if (settings.model) document.getElementById('model').value = settings.model;
-        if (settings.temperature) document.getElementById('temperature').value = settings.temperature;
-        if (settings.targetLanguage) document.getElementById('targetLanguage').value = settings.targetLanguage;
-        if (settings.autoSave !== undefined) document.getElementById('autoSave').checked = settings.autoSave;
-    }
-}
-
-// History Management
-function saveTranslationToHistory(translation) {
-    const history = JSON.parse(localStorage.getItem('translationHistory') || '[]');
-    history.unshift(translation);
-    history.splice(50); // Keep only last 50
-    localStorage.setItem('translationHistory', JSON.stringify(history));
-    state.history = history;
+function saveToHistory(item) {
+    state.history.unshift({ ...item, time: new Date().toISOString() });
+    state.history.splice(50);
+    saveState();
 }
 
 function loadHistory() {
-    const saved = localStorage.getItem('translationHistory');
-    state.history = saved ? JSON.parse(saved) : [];
-}
-
-function displayHistory() {
-    const container = document.getElementById('historyContainer');
-    
-    if (state.history.length === 0) {
-        container.innerHTML = '<p class="empty-state">No translations yet. Start translating to see history!</p>';
-        return;
-    }
-
-    container.innerHTML = state.history.map((item, index) => {
-        const date = new Date(item.timestamp);
-        const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
-        return `
-            <div class="history-item">
-                <div class="history-item-time">📅 ${timeStr}</div>
-                <div class="history-item-text">
-                    <strong>B':</strong> ${item.translationBp.substring(0, 100)}${item.translationBp.length > 100 ? '...' : ''}
-                </div>
-                <div class="history-item-text">
-                    <strong>Language:</strong> ${item.language} | <strong>Model:</strong> ${item.model}
-                </div>
-                <div class="history-item-actions">
-                    <button class="btn-secondary" onclick="loadHistoryItem(${index})">📖 Load</button>
-                    <button class="btn-secondary" onclick="copyHistoryItem(${index})">📋 Copy B'</button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function loadHistoryItem(index) {
-    const item = state.history[index];
-    document.getElementById('zoneA').value = item.sourceA;
-    document.getElementById('zoneAp').value = item.translationAp;
-    document.getElementById('zoneB').value = item.sourceB;
-    document.getElementById('zoneBp').value = item.translationBp;
-    ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'].forEach(zoneId => updateCharCount(zoneId));
-    switchTab('editor');
-    showStatus('📖 History item loaded', 'success');
-}
-
-function copyHistoryItem(index) {
-    const item = state.history[index];
-    navigator.clipboard.writeText(item.translationBp).then(() => {
-        showStatus('✅ Translation copied to clipboard', 'success', 2000);
-    });
-}
-
-function clearHistory() {
-    if (confirm('Clear all translation history? This cannot be undone.')) {
-        localStorage.removeItem('translationHistory');
-        state.history = [];
-        displayHistory();
-        showStatus('🗑️ History cleared', 'info');
-    }
-}
-
-function downloadHistory() {
-    if (state.history.length === 0) {
-        showStatus('❌ No history to download', 'error');
-        return;
-    }
-
-    const dataStr = JSON.stringify(state.history, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `translation-history-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showStatus('✅ History downloaded', 'success');
+    // History loaded from state
 }
