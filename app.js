@@ -1,8 +1,12 @@
-// CORS Proxy for handling cross-origin requests
-const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
-
-// Translation endpoints configuration
+// Translation endpoints configuration - 15 AI providers
 const PROVIDERS = {
+    deepseek: {
+        name: 'DeepSeek',
+        endpoint: 'https://api.deepseek.com/chat/completions',
+        model: 'deepseek-chat',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
     groq: {
         name: 'Groq',
         endpoint: 'https://api.groq.com/openai/v1/chat/completions',
@@ -28,6 +32,76 @@ const PROVIDERS = {
         name: 'HuggingFace',
         endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
         model: 'mistralai/Mistral-7B-Instruct-v0.2',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    anthropic: {
+        name: 'Claude (Anthropic)',
+        endpoint: 'https://api.anthropic.com/v1/messages',
+        model: 'claude-3-5-sonnet-20241022',
+        header: 'x-api-key',
+        prefix: ''
+    },
+    mistral: {
+        name: 'Mistral',
+        endpoint: 'https://api.mistral.ai/v1/chat/completions',
+        model: 'mistral-small-latest',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    together: {
+        name: 'Together AI',
+        endpoint: 'https://api.together.xyz/v1/chat/completions',
+        model: 'meta-llama/Llama-3-70b-chat-hf',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    perplexity: {
+        name: 'Perplexity',
+        endpoint: 'https://api.perplexity.ai/chat/completions',
+        model: 'llama-3.1-sonar-small-128k-online',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    aliyun: {
+        name: 'Aliyun Qwen',
+        endpoint: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
+        model: 'qwen-turbo',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    baidu: {
+        name: 'Baidu Ernie',
+        endpoint: 'https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions',
+        model: 'ernie-4.0-turbo-8k',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    google: {
+        name: 'Google Gemini',
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+        model: 'gemini-pro',
+        header: 'x-goog-api-key',
+        prefix: ''
+    },
+    ollama: {
+        name: 'Ollama (Local)',
+        endpoint: 'http://localhost:11434/api/chat',
+        model: 'neural-chat',
+        header: 'Authorization',
+        prefix: 'Bearer '
+    },
+    replicate: {
+        name: 'Replicate',
+        endpoint: 'https://api.replicate.com/v1/predictions',
+        model: 'meta/llama-2-70b-chat',
+        header: 'Authorization',
+        prefix: 'Token '
+    },
+    fireworks: {
+        name: 'Fireworks AI',
+        endpoint: 'https://api.fireworks.ai/inference/v1/chat/completions',
+        model: 'accounts/fireworks/models/llama-v2-70b-chat',
         header: 'Authorization',
         prefix: 'Bearer '
     }
@@ -151,8 +225,16 @@ async function translateDirect(provider, apiKey, text, language) {
 
     if (provider === 'cohere') {
         return await callCohere(apiKey, prompt);
-    } else if (provider === 'huggingface') {
-        return await callHuggingFace(apiKey, prompt);
+    } else if (provider === 'anthropic') {
+        return await callAnthropic(apiKey, prompt);
+    } else if (provider === 'google') {
+        return await callGoogle(apiKey, prompt);
+    } else if (provider === 'aliyun') {
+        return await callAliyun(apiKey, prompt);
+    } else if (provider === 'baidu') {
+        return await callBaidu(apiKey, prompt);
+    } else if (provider === 'ollama') {
+        return await callOllama(apiKey, prompt);
     } else {
         return await callOpenAICompatible(config, apiKey, prompt);
     }
@@ -176,8 +258,16 @@ Return ONLY the translated text, nothing else.`;
 
     if (provider === 'cohere') {
         return await callCohere(apiKey, prompt);
-    } else if (provider === 'huggingface') {
-        return await callHuggingFace(apiKey, prompt);
+    } else if (provider === 'anthropic') {
+        return await callAnthropic(apiKey, prompt);
+    } else if (provider === 'google') {
+        return await callGoogle(apiKey, prompt);
+    } else if (provider === 'aliyun') {
+        return await callAliyun(apiKey, prompt);
+    } else if (provider === 'baidu') {
+        return await callBaidu(apiKey, prompt);
+    } else if (provider === 'ollama') {
+        return await callOllama(apiKey, prompt);
     } else {
         return await callOpenAICompatible(config, apiKey, prompt);
     }
@@ -274,20 +364,21 @@ async function callCohere(apiKey, prompt) {
     }
 }
 
-async function callHuggingFace(apiKey, prompt) {
+async function callAnthropic(apiKey, prompt) {
     try {
-        const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + apiKey
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                inputs: prompt,
-                parameters: {
-                    max_length: 2000,
-                    temperature: 0.3
-                }
+                model: 'claude-3-5-sonnet-20241022',
+                max_tokens: 2000,
+                messages: [
+                    { role: 'user', content: prompt }
+                ]
             })
         });
 
@@ -295,7 +386,7 @@ async function callHuggingFace(apiKey, prompt) {
             let errorMessage = `API Error: ${response.status}`;
             try {
                 const error = await response.json();
-                errorMessage = error.error || error.message || errorMessage;
+                errorMessage = error.error?.message || error.message || errorMessage;
             } catch (e) {
                 const text = await response.text();
                 if (text) errorMessage = text;
@@ -304,17 +395,164 @@ async function callHuggingFace(apiKey, prompt) {
         }
 
         const data = await response.json();
-        const result = Array.isArray(data) 
-            ? data[0]?.generated_text?.trim() 
-            : data.generated_text?.trim();
+        const result = data.content?.[0]?.text?.trim();
         
         if (!result) {
-            throw new Error('Empty response from HuggingFace API');
+            throw new Error('Empty response from Anthropic API');
         }
         
         return result;
     } catch (error) {
-        throw new Error(`HuggingFace Error: ${error.message}`);
+        throw new Error(`Claude Error: ${error.message}`);
+    }
+}
+
+async function callGoogle(apiKey, prompt) {
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: prompt }]
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.error?.message || error.message || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from Google API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`Google Error: ${error.message}`);
+    }
+}
+
+async function callAliyun(apiKey, prompt) {
+    try {
+        const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify({
+                model: 'qwen-turbo',
+                input: { messages: [{ role: 'user', content: prompt }] },
+                parameters: { temperature: 0.3 }
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.message || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const result = data.output?.text?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from Aliyun API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`Aliyun Error: ${error.message}`);
+    }
+}
+
+async function callBaidu(apiKey, prompt) {
+    try {
+        const response = await fetch('https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions?access_token=' + apiKey, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.3
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.error_description || error.message || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const result = data.result?.message?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from Baidu API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`Baidu Error: ${error.message}`);
+    }
+}
+
+async function callOllama(apiKey, prompt) {
+    try {
+        const response = await fetch('http://localhost:11434/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'neural-chat',
+                messages: [
+                    { role: 'user', content: prompt }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Ollama API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const result = data.message?.content?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from Ollama API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`Ollama Error: ${error.message}`);
     }
 }
 
