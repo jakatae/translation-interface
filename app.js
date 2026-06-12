@@ -35,23 +35,35 @@ const PROVIDERS = {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    const modeSelect = document.getElementById('mode');
-    if (modeSelect) {
-        modeSelect.addEventListener('change', toggleReferenceMode);
-        toggleReferenceMode();
-    }
+    updateCharCounts();
+    
+    // Add real-time char count updates
+    const zones = ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'];
+    zones.forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+            elem.addEventListener('input', updateCharCounts);
+        }
+    });
+
+    // Keyboard shortcut: Ctrl+Enter to translate
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            doTranslate();
+        }
+    });
 });
 
-function toggleReferenceMode() {
-    const mode = document.getElementById('mode')?.value;
-    const refSection = document.getElementById('referenceSection');
-    if (refSection) {
-        if (mode === 'reference') {
-            refSection.classList.remove('hidden');
-        } else {
-            refSection.classList.add('hidden');
+function updateCharCounts() {
+    const zones = ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'];
+    zones.forEach(id => {
+        const elem = document.getElementById(id);
+        const countElem = document.getElementById('count' + id.substring(4).toUpperCase());
+        if (elem && countElem) {
+            const length = elem.value.length;
+            countElem.textContent = length + ' ' + (length === 1 ? 'char' : 'chars');
         }
-    }
+    });
 }
 
 function showStatus(message, type) {
@@ -69,11 +81,14 @@ function showStatus(message, type) {
 }
 
 async function doTranslate() {
+    console.log('Translate button clicked');
+    
     const provider = document.getElementById('provider')?.value;
     const apiKey = document.getElementById('apiKey')?.value?.trim();
-    const sourceText = document.getElementById('sourceText')?.value?.trim();
+    const zoneA = document.getElementById('zoneA')?.value?.trim();
+    const zoneAp = document.getElementById('zoneAp')?.value?.trim();
+    const zoneB = document.getElementById('zoneB')?.value?.trim();
     const language = document.getElementById('language')?.value;
-    const mode = document.getElementById('mode')?.value;
 
     // Validation
     if (!apiKey) {
@@ -81,18 +96,14 @@ async function doTranslate() {
         return;
     }
 
-    if (!sourceText) {
-        showStatus('❌ Please enter text to translate', 'error');
+    if (!zoneB) {
+        showStatus('❌ Please enter text to translate in Zone B', 'error');
         return;
     }
 
-    if (mode === 'reference') {
-        const refOriginal = document.getElementById('refOriginal')?.value?.trim();
-        const refTranslation = document.getElementById('refTranslation')?.value?.trim();
-        if (!refOriginal || !refTranslation) {
-            showStatus('❌ Please provide both reference texts', 'error');
-            return;
-        }
+    if (!provider || !language) {
+        showStatus('❌ Please select provider and language', 'error');
+        return;
     }
 
     const btn = document.getElementById('translateBtn');
@@ -102,20 +113,24 @@ async function doTranslate() {
     try {
         let result;
 
-        if (mode === 'reference') {
-            const refOriginal = document.getElementById('refOriginal')?.value?.trim();
-            const refTranslation = document.getElementById('refTranslation')?.value?.trim();
-            result = await translateWithReference(provider, apiKey, sourceText, language, refOriginal, refTranslation);
+        // Auto-detect if reference texts are provided
+        if (zoneA && zoneAp) {
+            console.log('Using reference mode');
+            result = await translateWithReference(provider, apiKey, zoneB, language, zoneA, zoneAp);
         } else {
-            result = await translateDirect(provider, apiKey, sourceText, language);
+            console.log('Using direct mode');
+            result = await translateDirect(provider, apiKey, zoneB, language);
         }
 
         if (!result) {
             throw new Error('No translation received from API. Please check your API key and try again.');
         }
 
-        const resultText = document.getElementById('resultText');
-        if (resultText) resultText.value = result;
+        const resultZone = document.getElementById('zoneBp');
+        if (resultZone) {
+            resultZone.value = result;
+            updateCharCounts();
+        }
         
         showStatus('✅ Translation complete!', 'success');
     } catch (error) {
@@ -303,13 +318,13 @@ async function callHuggingFace(apiKey, prompt) {
     }
 }
 
-function copyResult() {
-    const resultText = document.getElementById('resultText')?.value;
-    if (!resultText) {
-        showStatus('❌ No translation to copy', 'error');
+function copyZone(zoneId) {
+    const zone = document.getElementById(zoneId);
+    if (!zone || !zone.value) {
+        showStatus('❌ Nothing to copy', 'error');
         return;
     }
-    navigator.clipboard.writeText(resultText).then(() => {
+    navigator.clipboard.writeText(zone.value).then(() => {
         showStatus('✅ Copied to clipboard!', 'success');
     }).catch(err => {
         showStatus('❌ Failed to copy: ' + err.message, 'error');
@@ -317,10 +332,11 @@ function copyResult() {
 }
 
 function clearAll() {
-    const fields = ['sourceText', 'resultText', 'refOriginal', 'refTranslation'];
-    fields.forEach(id => {
-        const field = document.getElementById(id);
-        if (field) field.value = '';
+    const zones = ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'];
+    zones.forEach(id => {
+        const zone = document.getElementById(id);
+        if (zone) zone.value = '';
     });
+    updateCharCounts();
     showStatus('🗑️ Cleared all fields', 'success');
 }
