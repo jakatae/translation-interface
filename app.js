@@ -41,7 +41,8 @@ const PROVIDERS = {
         ],
         endpoint: 'https://api.anthropic.com/v1/messages',
         authHeader: 'x-api-key',
-        authPrefix: ''
+        authPrefix: '',
+        anthropic: true
     },
     cohere: {
         name: '✨ Cohere',
@@ -125,6 +126,7 @@ const PROVIDERS = {
 let state = {
     provider: 'groq',
     model: 'mixtral-8x7b-32768',
+    mode: 'reference',
     history: []
 };
 
@@ -134,6 +136,7 @@ function init() {
     loadState();
     setupProviders();
     setupCounters();
+    setupModeToggle();
     loadHistory();
 }
 
@@ -158,6 +161,7 @@ function onProviderChange() {
 
 function updateModels() {
     const provider = PROVIDERS[state.provider];
+    if (!provider) return;
     const modelSelect = document.getElementById('model');
     modelSelect.innerHTML = '';
     provider.models.forEach(m => {
@@ -170,40 +174,94 @@ function updateModels() {
     modelSelect.value = state.model;
 }
 
+function setupModeToggle() {
+    const modeSelect = document.getElementById('mode');
+    if (!modeSelect) return;
+    modeSelect.addEventListener('change', (e) => {
+        state.mode = e.target.value;
+        updateUIForMode();
+        saveState();
+    });
+    updateUIForMode();
+}
+
+function updateUIForMode() {
+    const refContainer = document.getElementById('zoneA-container');
+    const refContainer2 = document.getElementById('zoneAp-container');
+    if (state.mode === 'direct') {
+        if (refContainer) refContainer.style.display = 'none';
+        if (refContainer2) refContainer2.style.display = 'none';
+    } else {
+        if (refContainer) refContainer.style.display = 'block';
+        if (refContainer2) refContainer2.style.display = 'block';
+    }
+}
+
 function setupCounters() {
     ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'].forEach(id => {
-        document.getElementById(id).addEventListener('input', () => {
-            const count = document.getElementById(id).value.length;
-            document.getElementById('count' + id.replace('zone', '')).textContent = count;
-        });
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                const count = el.value.length;
+                const countEl = document.getElementById('count' + id.replace('zone', ''));
+                if (countEl) countEl.textContent = count;
+            });
+        }
     });
 }
 
 function copy(id) {
-    const text = document.getElementById(id).value;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const text = el.value;
+    if (!text) return;
     navigator.clipboard.writeText(text);
     showStatus('Copied', 'success', 1500);
 }
 
-function clear() {
-    document.getElementById('zoneA').value = '';
-    document.getElementById('zoneAp').value = '';
-    document.getElementById('zoneB').value = '';
-    document.getElementById('zoneBp').value = '';
-    ['A', 'Ap', 'B', 'Bp'].forEach(x => document.getElementById('count' + x).textContent = '0');
+function clearAll() {
+    const zones = ['zoneA', 'zoneAp', 'zoneB', 'zoneBp'];
+    zones.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['A', 'Ap', 'B', 'Bp'].forEach(x => {
+        const countEl = document.getElementById('count' + x);
+        if (countEl) countEl.textContent = '0';
+    });
 }
 
 async function translate() {
-    const a = document.getElementById('zoneA').value.trim();
-    const ap = document.getElementById('zoneAp').value.trim();
-    const b = document.getElementById('zoneB').value.trim();
-    const apiKey = document.getElementById('apiKey').value.trim();
-    const lang = document.getElementById('language').value;
-    const temp = parseFloat(document.getElementById('temperature').value);
-    const provider = state.provider;
+    const aEl = document.getElementById('zoneA');
+    const apEl = document.getElementById('zoneAp');
+    const bEl = document.getElementById('zoneB');
+    const apiKeyEl = document.getElementById('apiKey');
+    const langEl = document.getElementById('language');
+    const tempEl = document.getElementById('temperature');
+    const modeEl = document.getElementById('mode');
 
-    if (!a || !ap || !b) {
+    if (!aEl || !apEl || !bEl || !apiKeyEl || !langEl || !tempEl) {
+        console.error('Missing HTML elements');
+        showStatus('UI Error', 'error');
+        return;
+    }
+
+    const a = aEl.value.trim();
+    const ap = apEl.value.trim();
+    const b = bEl.value.trim();
+    const apiKey = apiKeyEl.value.trim();
+    const lang = langEl.value;
+    const temp = parseFloat(tempEl.value);
+    const provider = state.provider;
+    const mode = modeEl ? modeEl.value : 'reference';
+
+    if (mode === 'reference' && (!a || !ap || !b)) {
         showStatus('Fill all zones', 'error');
+        return;
+    }
+
+    if (mode === 'direct' && !b) {
+        showStatus('Fill Zone B', 'error');
         return;
     }
 
@@ -212,22 +270,29 @@ async function translate() {
         return;
     }
 
-    const translateBtn = document.querySelector('.btn-primary');
+    const translateBtn = document.getElementById('translateBtn');
+    if (!translateBtn) {
+        console.error('Missing translate button');
+        return;
+    }
+    
     translateBtn.disabled = true;
     showStatus('Translating...', 'loading');
 
     try {
-        const prompt = `Analyze this translation style:
-SOURCE: "${a}"
-TRANSLATION: "${ap}"
-
-Apply the same style and terminology to translate:
-"${b}"
-
-Return ONLY the translation in ${lang}. Nothing else.`;
+        let prompt;
+        if (mode === 'reference') {
+            prompt = `Analyze this translation style:\nSOURCE: "${a}"\nTRANSLATION: "${ap}"\n\nApply the same style and terminology to translate:\n"${b}"\n\nReturn ONLY the translation in ${lang}. Nothing else.`;
+        } else {
+            prompt = `Translate to ${lang}:\n"${b}"\n\nReturn ONLY the translation. Nothing else.`;
+        }
 
         let result;
         const providerConfig = PROVIDERS[provider];
+
+        if (!providerConfig) {
+            throw new Error('Provider not found');
+        }
 
         if (provider === 'anthropic') {
             result = await callAnthropic(prompt, temp, apiKey);
@@ -237,14 +302,20 @@ Return ONLY the translation in ${lang}. Nothing else.`;
             result = await callOpenAICompatible(prompt, temp, apiKey, providerConfig);
         }
 
-        document.getElementById('zoneBp').value = result;
-        document.getElementById('countBp').textContent = result.length;
+        const zoneBpEl = document.getElementById('zoneBp');
+        if (zoneBpEl) {
+            zoneBpEl.value = result;
+            const countBpEl = document.getElementById('countBp');
+            if (countBpEl) countBpEl.textContent = result.length;
+        }
+        
         showStatus('Done', 'success', 2000);
 
         if (document.getElementById('autoSave').checked) {
-            saveToHistory({ a, ap, b, result, lang, provider });
+            saveToHistory({ a, ap, b, result, lang, provider, mode });
         }
     } catch (e) {
+        console.error('Translation error:', e);
         showStatus('Error: ' + e.message, 'error');
     } finally {
         translateBtn.disabled = false;
@@ -266,7 +337,10 @@ async function callOpenAICompatible(prompt, temp, key, config) {
         })
     });
 
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+    }
     const data = await res.json();
     return data.choices?.[0]?.message?.content?.trim() || data.text?.trim() || '';
 }
@@ -287,7 +361,10 @@ async function callAnthropic(prompt, temp, key) {
         })
     });
 
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+    }
     const data = await res.json();
     return data.content?.[0]?.text?.trim() || '';
 }
@@ -311,6 +388,7 @@ async function callOllama(prompt, temp) {
 
 function showStatus(msg, type, duration = 4000) {
     const el = document.getElementById('status');
+    if (!el) return;
     el.textContent = msg;
     el.className = 'status show ' + type;
     if (type !== 'loading') {
@@ -324,7 +402,13 @@ function saveState() {
 
 function loadState() {
     const saved = localStorage.getItem('tstate');
-    if (saved) state = { ...state, ...JSON.parse(saved) };
+    if (saved) {
+        try {
+            state = { ...state, ...JSON.parse(saved) };
+        } catch (e) {
+            console.error('Error loading state:', e);
+        }
+    }
 }
 
 function saveToHistory(item) {
