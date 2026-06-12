@@ -1,3 +1,6 @@
+// CORS Proxy for handling cross-origin requests
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+
 // Translation endpoints configuration
 const PROVIDERS = {
     groq: {
@@ -16,14 +19,14 @@ const PROVIDERS = {
     },
     cohere: {
         name: 'Cohere',
-        endpoint: 'https://api.cohere.ai/v1/chat',
+        endpoint: 'https://api.cohere.ai/v1/generate',
         model: 'command',
         header: 'Authorization',
         prefix: 'Bearer '
     },
     huggingface: {
         name: 'HuggingFace',
-        endpoint: 'https://api-inference.huggingface.co/v1/chat/completions',
+        endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
         model: 'mistralai/Mistral-7B-Instruct-v0.2',
         header: 'Authorization',
         prefix: 'Bearer '
@@ -32,22 +35,29 @@ const PROVIDERS = {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('mode').addEventListener('change', toggleReferenceMode);
-    toggleReferenceMode();
+    const modeSelect = document.getElementById('mode');
+    if (modeSelect) {
+        modeSelect.addEventListener('change', toggleReferenceMode);
+        toggleReferenceMode();
+    }
 });
 
 function toggleReferenceMode() {
-    const mode = document.getElementById('mode').value;
+    const mode = document.getElementById('mode')?.value;
     const refSection = document.getElementById('referenceSection');
-    if (mode === 'reference') {
-        refSection.classList.remove('hidden');
-    } else {
-        refSection.classList.add('hidden');
+    if (refSection) {
+        if (mode === 'reference') {
+            refSection.classList.remove('hidden');
+        } else {
+            refSection.classList.add('hidden');
+        }
     }
 }
 
 function showStatus(message, type) {
     const status = document.getElementById('status');
+    if (!status) return;
+    
     status.textContent = message;
     status.className = 'status show ' + type;
     
@@ -59,11 +69,11 @@ function showStatus(message, type) {
 }
 
 async function doTranslate() {
-    const provider = document.getElementById('provider').value;
-    const apiKey = document.getElementById('apiKey').value.trim();
-    const sourceText = document.getElementById('sourceText').value.trim();
-    const language = document.getElementById('language').value;
-    const mode = document.getElementById('mode').value;
+    const provider = document.getElementById('provider')?.value;
+    const apiKey = document.getElementById('apiKey')?.value?.trim();
+    const sourceText = document.getElementById('sourceText')?.value?.trim();
+    const language = document.getElementById('language')?.value;
+    const mode = document.getElementById('mode')?.value;
 
     // Validation
     if (!apiKey) {
@@ -77,8 +87,8 @@ async function doTranslate() {
     }
 
     if (mode === 'reference') {
-        const refOriginal = document.getElementById('refOriginal').value.trim();
-        const refTranslation = document.getElementById('refTranslation').value.trim();
+        const refOriginal = document.getElementById('refOriginal')?.value?.trim();
+        const refTranslation = document.getElementById('refTranslation')?.value?.trim();
         if (!refOriginal || !refTranslation) {
             showStatus('❌ Please provide both reference texts', 'error');
             return;
@@ -86,36 +96,48 @@ async function doTranslate() {
     }
 
     const btn = document.getElementById('translateBtn');
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
     showStatus('⏳ Translating...', 'loading');
 
     try {
         let result;
 
         if (mode === 'reference') {
-            const refOriginal = document.getElementById('refOriginal').value.trim();
-            const refTranslation = document.getElementById('refTranslation').value.trim();
+            const refOriginal = document.getElementById('refOriginal')?.value?.trim();
+            const refTranslation = document.getElementById('refTranslation')?.value?.trim();
             result = await translateWithReference(provider, apiKey, sourceText, language, refOriginal, refTranslation);
         } else {
             result = await translateDirect(provider, apiKey, sourceText, language);
         }
 
-        document.getElementById('resultText').value = result;
+        if (!result) {
+            throw new Error('No translation received from API. Please check your API key and try again.');
+        }
+
+        const resultText = document.getElementById('resultText');
+        if (resultText) resultText.value = result;
+        
         showStatus('✅ Translation complete!', 'success');
     } catch (error) {
         console.error('Translation error:', error);
-        showStatus('❌ Error: ' + error.message, 'error');
+        showStatus('❌ Error: ' + (error.message || 'Unknown error occurred'), 'error');
     } finally {
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     }
 }
 
 async function translateDirect(provider, apiKey, text, language) {
     const config = PROVIDERS[provider];
+    if (!config) {
+        throw new Error(`Provider ${provider} not found`);
+    }
+
     const prompt = `You are a professional translator. Translate the following text to ${language}. Return ONLY the translated text, nothing else.\n\nText to translate:\n${text}`;
 
     if (provider === 'cohere') {
         return await callCohere(apiKey, prompt);
+    } else if (provider === 'huggingface') {
+        return await callHuggingFace(apiKey, prompt);
     } else {
         return await callOpenAICompatible(config, apiKey, prompt);
     }
@@ -123,6 +145,10 @@ async function translateDirect(provider, apiKey, text, language) {
 
 async function translateWithReference(provider, apiKey, text, language, refOriginal, refTranslation) {
     const config = PROVIDERS[provider];
+    if (!config) {
+        throw new Error(`Provider ${provider} not found`);
+    }
+
     const prompt = `You are a professional translator. Study this translation reference:
 
 Original: "${refOriginal}"
@@ -135,77 +161,166 @@ Return ONLY the translated text, nothing else.`;
 
     if (provider === 'cohere') {
         return await callCohere(apiKey, prompt);
+    } else if (provider === 'huggingface') {
+        return await callHuggingFace(apiKey, prompt);
     } else {
         return await callOpenAICompatible(config, apiKey, prompt);
     }
 }
 
 async function callOpenAICompatible(config, apiKey, prompt) {
-    const response = await fetch(config.endpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            [config.header]: config.prefix + apiKey
-        },
-        body: JSON.stringify({
-            model: config.model,
-            messages: [
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.3,
-            max_tokens: 2000
-        })
-    });
+    try {
+        const response = await fetch(config.endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                [config.header]: config.prefix + apiKey
+            },
+            body: JSON.stringify({
+                model: config.model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a professional translator. Respond with only the translated text.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ],
+                temperature: 0.3,
+                max_tokens: 2000
+            })
+        });
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || `API Error: ${response.status}`);
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.error?.message || error.message || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const result = data.choices?.[0]?.message?.content?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`${config.name} Error: ${error.message}`);
     }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content?.trim() || '';
 }
 
 async function callCohere(apiKey, prompt) {
-    const response = await fetch('https://api.cohere.ai/v1/chat', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + apiKey
-        },
-        body: JSON.stringify({
-            message: prompt,
-            model: 'command',
-            temperature: 0.3
-        })
-    });
+    try {
+        const response = await fetch('https://api.cohere.ai/v1/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify({
+                model: 'command',
+                prompt: prompt,
+                max_tokens: 2000,
+                temperature: 0.3
+            })
+        });
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `API Error: ${response.status}`);
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.message || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const result = data.generations?.[0]?.text?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from Cohere API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`Cohere Error: ${error.message}`);
     }
+}
 
-    const data = await response.json();
-    return data.text?.trim() || '';
+async function callHuggingFace(apiKey, prompt) {
+    try {
+        const response = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + apiKey
+            },
+            body: JSON.stringify({
+                inputs: prompt,
+                parameters: {
+                    max_length: 2000,
+                    temperature: 0.3
+                }
+            })
+        });
+
+        if (!response.ok) {
+            let errorMessage = `API Error: ${response.status}`;
+            try {
+                const error = await response.json();
+                errorMessage = error.error || error.message || errorMessage;
+            } catch (e) {
+                const text = await response.text();
+                if (text) errorMessage = text;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        const result = Array.isArray(data) 
+            ? data[0]?.generated_text?.trim() 
+            : data.generated_text?.trim();
+        
+        if (!result) {
+            throw new Error('Empty response from HuggingFace API');
+        }
+        
+        return result;
+    } catch (error) {
+        throw new Error(`HuggingFace Error: ${error.message}`);
+    }
 }
 
 function copyResult() {
-    const resultText = document.getElementById('resultText').value;
+    const resultText = document.getElementById('resultText')?.value;
     if (!resultText) {
         showStatus('❌ No translation to copy', 'error');
         return;
     }
-    navigator.clipboard.writeText(resultText);
-    showStatus('✅ Copied to clipboard!', 'success');
+    navigator.clipboard.writeText(resultText).then(() => {
+        showStatus('✅ Copied to clipboard!', 'success');
+    }).catch(err => {
+        showStatus('❌ Failed to copy: ' + err.message, 'error');
+    });
 }
 
 function clearAll() {
-    document.getElementById('sourceText').value = '';
-    document.getElementById('resultText').value = '';
-    document.getElementById('refOriginal').value = '';
-    document.getElementById('refTranslation').value = '';
+    const fields = ['sourceText', 'resultText', 'refOriginal', 'refTranslation'];
+    fields.forEach(id => {
+        const field = document.getElementById(id);
+        if (field) field.value = '';
+    });
     showStatus('🗑️ Cleared all fields', 'success');
 }
