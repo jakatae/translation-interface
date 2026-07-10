@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reference Finder - AI-Powered Content Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 21H3V3h9V1H3a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-9h-2z"></path>
+                        <path d="M16 3h6v6m-13 5l8.5-8.5"></path>
+                    </svg>
+                    <span>Reference Finder</span>
+                </div>
+                <p class="tagline">Intelligent Content Analysis & Reference Discovery</p>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="section-header">
+                    <h2>Paste Your Content</h2>
+                    <span class="hint">Supports text of any length</span>
+                </div>
+                
+                <div class="input-wrapper">
+                    <textarea 
+                        id="contentInput" 
+                        class="content-input" 
+                        placeholder="Paste your text, article, or document here. The tool will automatically break it down into meaningful segments and search for similar references..."
+                        spellcheck="false"
+                    ></textarea>
+                    <div class="char-count">
+                        <span id="charCounter">0</span> / 50000 characters
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="options-panel">
+                    <div class="option-group">
+                        <label for="segmentSize">Segment Size</label>
+                        <select id="segmentSize" class="select-control">
+                            <option value="100">Small (100 chars)</option>
+                            <option value="200" selected>Medium (200 chars)</option>
+                            <option value="400">Large (400 chars)</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label for="resultCount">Results per Segment</label>
+                        <select id="resultCount" class="select-control">
+                            <option value="3">3 Results</option>
+                            <option value="5" selected>5 Results</option>
+                            <option value="10">10 Results</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label for="similarityThreshold">Min. Similarity</label>
+                        <input type="range" id="similarityThreshold" min="0" max="100" value="60" class="slider">
+                        <span id="thresholdValue">60%</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="button-group">
+                    <button id="analyzeBtn" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        Analyze & Search
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 4 21 20"></polyline>
+                            <path d="M19 4a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6"></path>
+                        </svg>
+                        Clear
+                    </button>
+                </div>
+            </section>
+
+            <!-- Segments Preview Section -->
+            <section id="segmentsSection" class="segments-section" style="display: none;">
+                <div class="section-header">
+                    <h2>Text Segments</h2>
+                    <span class="hint" id="segmentCount">0 segments identified</span>
+                </div>
+                <div id="segmentsList" class="segments-list"></div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="resultsSection" class="results-section" style="display: none;">
+                <div class="section-header">
+                    <h2>Reference Search Results</h2>
+                    <div class="results-controls">
+                        <button id="sortBtn" class="btn-sort">Sort by Similarity ↓</button>
+                        <button id="exportBtn" class="btn-export">Export Results</button>
+                    </div>
+                </div>
+                <div id="resultsList" class="results-list"></div>
+            </section>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading-state" style="display: none;">
+                <div class="spinner"></div>
+                <p>Analyzing content and searching references...</p>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+
+            <!-- No Results State -->
+            <div id="noResultsState" class="no-results-state" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <h3>No References Found</h3>
+                <p>Try adjusting your similarity threshold or analyzing different content.</p>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Reference Finder • Powered by Advanced Content Analysis</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
